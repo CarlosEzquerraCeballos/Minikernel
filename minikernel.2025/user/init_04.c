@@ -22,14 +22,15 @@ int main(){
         printf("Error creando yosoy\n");
 
 /* BLOQUE 1: acceso a memoria inválido -> debe terminar init pero no el SO
-*/
+
     int *pi = 0;
     *pi = 5; // excepción de memoria
+*/
 
-/* BLOQUE 2: llamada con puntero no accesible -> debe terminar init pero no el SO
+// BLOQUE 2: llamada con puntero no accesible -> debe terminar init pero no el SO
     void *p = (void *) 0xfffffffffff00000;
     print(p, 4); // se le pasa dir no accesible (pasa igual con create_process)
-*/
+
 
     printf("init termina\n");
 

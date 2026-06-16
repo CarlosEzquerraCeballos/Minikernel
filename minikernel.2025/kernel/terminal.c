@@ -23,5 +23,14 @@ int do_print(char * buf, int size) {
     print_terminal(buf, size); // operación del HAL
     return 0;
 }
+
+/* Manejador de la interrupción de teclado (vector KEYBOARD_INT).
+   En esta fase inicial solo notifica que se ha pulsado una tecla. */
+static void keyboard_handler(void) {
+    printk("-> INT. TECLADO\n");
+}
+
 void init_terminal_module(void) {
+    register_irq_handler(KEYBOARD_INT, keyboard_handler);
+    init_keyboard_controller();
 }
