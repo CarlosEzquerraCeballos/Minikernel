@@ -34,6 +34,7 @@ typedef struct PCB {
     int pid;		// ident. del proceso
     int state;		// FINISHED|READY|RUNNING|BLOCKED
     int priority;	// prioridad del proceso
+    int ticks_to_sleep;	// tics de reloj restantes de bloqueo (proc_sleep)
     context context;	// copia de regs. de UCP
     void *stack;	// dir. inicial de la pila
     void *mem;		// descriptor del mapa de memoria
@@ -58,6 +59,11 @@ int do_exit_process(void);
 int do_get_pid(void);
 
 int do_get_priority(void);
+
+int do_proc_sleep(unsigned int secs);
+
+// actualiza los procesos dormidos en cada tic de reloj
+void update_sleeping_processes(void);
 
 #endif /* _PROCESS_H */
 

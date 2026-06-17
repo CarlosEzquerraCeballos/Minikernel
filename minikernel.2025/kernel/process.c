@@ -14,12 +14,16 @@
 #include "sched.h"
 #include "syscall.h"
 #include "common.h"
+#include "clock.h"
 
 // Variable global que identifica el proceso actual
 PCB * current = NULL;
 
 /* Variable global que representa la tabla de procesos */
 static PCB proc_table[MAX_NR_PROC];
+
+/* Lista de procesos bloqueados durmiendo (proc_sleep) */
+list sleep_list;
 
 /* Función que inicia la tabla de procesos */
 static void init_process_table(void){
@@ -100,6 +104,7 @@ int do_exit_process(void){
 }
 void init_process_module(void) {
     init_process_table();
+    list_init(&sleep_list);
 }
 
 /* Implementación de la llamada al sistema get_pid */
@@ -109,4 +114,48 @@ int do_get_pid(void){
 /* Implementación de la llamada al sistema get_priority */
 int do_get_priority(void){
     return current->priority;
+}
+
+/* Implementación de la llamada al sistema proc_sleep: bloquea al proceso
+   actual durante secs segundos, cediendo la CPU. */
+int do_proc_sleep(unsigned int secs){
+    int prev_level;
+
+    current->ticks_to_sleep = secs * TICK; // segundos -> tics de reloj
+
+    /* Sección crítica: la sleep_list y la cola de listos las manipula también
+       el reloj (nivel 3). Se eleva el nivel para impedir que una interrupción
+       de reloj se cuele mientras se cambia el proceso de una lista a otra y
+       vea un estado incoherente. */
+    prev_level = set_int_priority_level(LEVEL_3);
+    remove_ready_queue();          // deja de estar listo
+    current->state = BLOCKED;
+    insert_last(&sleep_list, current); // pasa a la lista de dormidos
+    set_int_priority_level(prev_level);
+
+    // Cede la CPU; hay que salvar el contexto para reanudar al despertar. 
+    pick_and_activate_next_task(1);
+
+    // Se reanuda aquí cuando el proceso despierta y recupera la CPU. 
+    return 0;
+}
+
+/* Recorre la lista de dormidos decrementando su cuenta de tics. Los que
+   llegan a 0 se despiertan: se sacan de sleep_list y se devuelven a la cola
+   de listos. Se invoca desde el manejador de reloj (ya en nivel 3), por lo
+   que no necesita elevar el nivel de interrupción.
+   El borrado durante la iteración es seguro: iterator_next() memoriza el
+   elemento siguiente antes de que se modifique el actual al extraerlo. */
+void update_sleeping_processes(void){
+    iterator it;
+    PCB *p;
+
+    for (iterator_init(&sleep_list, &it); iterator_has_next(&it); ) {
+        p = iterator_next(&it);
+        p->ticks_to_sleep--;
+        if (p->ticks_to_sleep <= 0) {
+            remove_elem(&sleep_list, p);
+            add_ready_queue(p); // dispara soft int si p es más prioritario
+        }
+    }
 }

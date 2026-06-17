@@ -41,3 +41,6 @@ int get_pid(void){
 int get_priority(void){
     return sys_call(GET_PRIORITY, 0);
 }
+int proc_sleep(unsigned int secs){
+    return sys_call(PROC_SLEEP, 1, (long)secs);
+}

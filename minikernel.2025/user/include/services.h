@@ -27,6 +27,7 @@ int exit_process(void);
 int print(char *buf, unsigned int size);
 int get_pid(void);
 int get_priority(void);
+int proc_sleep(unsigned int secs);
 
 #endif /* _SERVICES_H */
 

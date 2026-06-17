@@ -25,6 +25,7 @@ static int sys_exit_process(void);
 static int sys_print(void);
 static int sys_get_pid(void);
 static int sys_get_priority(void);
+static int sys_proc_sleep(void);
 
 // tabla de llamadas al sistema
 int (*syscalls_table[NR_SYSCALLS])() = {sys_create_process,
@@ -32,6 +33,7 @@ int (*syscalls_table[NR_SYSCALLS])() = {sys_create_process,
                                         sys_print,
                                         sys_get_pid,
                                         sys_get_priority,
+                                        sys_proc_sleep,
                                        };
 
 // Manejador de llamadas al sistema: descoméntelo en cuanto esté registrado
@@ -111,4 +113,9 @@ static int sys_get_pid(void) {
 }
 static int sys_get_priority(void) {
     return do_get_priority();
+}
+static int sys_proc_sleep(void) {
+    unsigned int secs;
+    secs=(unsigned int)read_register(1);
+    return do_proc_sleep(secs);
 }
