@@ -127,18 +127,22 @@ int do_proc_sleep(unsigned int secs){
 
     /* Sección crítica: la sleep_list y la cola de listos las manipula también
        el reloj (nivel 3). Se eleva el nivel para impedir que una interrupción
-       de reloj se cuele mientras se cambia el proceso de una lista a otra y
-       vea un estado incoherente. */
+       de reloj se cuele mientras se bloquea el proceso. El nivel se mantiene
+       elevado durante la cesión de CPU y solo se restaura cuando el proceso
+       despierta y reanuda su ejecución, evitando así cualquier ventana de
+       incoherencia entre el cambio de listas y el cambio de contexto. */
     prev_level = set_int_priority_level(LEVEL_3);
+
     remove_ready_queue();          // deja de estar listo
     current->state = BLOCKED;
     insert_last(&sleep_list, current); // pasa a la lista de dormidos
-    set_int_priority_level(prev_level);
 
-    // Cede la CPU; hay que salvar el contexto para reanudar al despertar. 
+    // Cede la CPU; hay que salvar el contexto para reanudar al despertar.
     pick_and_activate_next_task(1);
 
-    // Se reanuda aquí cuando el proceso despierta y recupera la CPU. 
+    // Se reanuda aquí cuando el proceso despierta y recupera la CPU.
+    set_int_priority_level(prev_level); // restaura el nivel previo
+
     return 0;
 }
 
@@ -157,6 +161,7 @@ void update_sleeping_processes(void){
         p->ticks_to_sleep--;
         if (p->ticks_to_sleep <= 0) {
             remove_elem(&sleep_list, p);
+            p->ticks_left = TICKS_POR_RODAJA; // al desbloquear, rodaja completa
             add_ready_queue(p); // dispara soft int si p es más prioritario
         }
     }

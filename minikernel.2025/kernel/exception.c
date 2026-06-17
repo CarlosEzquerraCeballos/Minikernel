@@ -34,8 +34,14 @@ static void exc_aritm_handler(void) {
 static void exc_mem_handler(void) {
     if (comes_from_usermode())
         do_exit_process(); // muerte involuntaria del proceso actual
-    else if (check_arg)
-        do_exit_process(); // fallo validando puntero de usuario: culpa del proceso
+    else if (check_arg) {
+        /* El fallo ocurrió mientras el núcleo validaba un puntero de usuario.
+           Hay que rearmar check_arg (la rutina de comprobación no llegó a
+           ponerlo a 0 al saltar la excepción) para que una futura excepción de
+           memoria real del kernel se detecte como tal y provoque pánico. */
+        check_arg = 0;
+        do_exit_process(); // culpa del proceso: se le aborta
+    }
     else
         panic("excepcion de memoria en modo sistema");
 }
