@@ -1,1 +1,1 @@
-init_05.c
+init_06.c
