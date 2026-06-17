@@ -13,13 +13,16 @@
 #include "HAL.h"
 #include "clock.h"
 #include "process.h"
+#include "sched.h"
 
 /* Manejador de la interrupción de reloj (vector CLOCK_INT).
-   En cada tic actualiza la cuenta de los procesos dormidos, despertando a los
-   que hayan agotado su tiempo de bloqueo. Se ejecuta en nivel 3, por lo que
-   update_sleeping_processes opera sobre sleep_list sin riesgo de carrera. */
+   En cada tic: despierta a los procesos dormidos cuyo plazo ha vencido y
+   descuenta tiempo de la rodaja del proceso en ejecución (round-robin). Se
+   ejecuta en nivel 3, por lo que ambas operaciones manipulan las listas sin
+   riesgo de carrera. */
 static void clock_handler(void) {
     update_sleeping_processes();
+    round_robin_tick();
 }
 
 void init_clock_module(void) {

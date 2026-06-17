@@ -91,6 +91,28 @@ PCB * scheduler(void) {
     return ready_queue[bit].first;       // primero de esa cola (FIFO)
 }
 
+
+/* Turno rotatorio (round-robin). Se invoca en cada tic de reloj (nivel 3).
+   Descuenta un tic de la rodaja del proceso en ejecución; cuando la agota, lo
+   pasa al final de su cola de prioridad (para que el siguiente de su mismo
+   nivel tome el turno) y fuerza la replanificación. No se descuenta tiempo si
+   no hay proceso actual o si current no está activo (bloqueado/terminado: el
+   sistema está en el bucle de espera de interrupciones). */
+void round_robin_tick(void) {
+    if (current == NULL ||
+        (current->state != RUNNING && current->state != READY))
+        return;
+
+    current->ticks_left--;
+    if (current->ticks_left <= 0) {
+        current->ticks_left = TICKS_POR_RODAJA; // recarga la rodaja
+        remove_ready_queue();   // lo saca de su posición actual
+        add_ready_queue(current); // lo reinserta al final (FIFO)
+        activate_soft_int();    // fuerza la expulsión y replanificación
+    }
+}
+
+
 /* Manejador de la interrupción software (vector SW_INT).
    Provoca la replanificación expulsiva salvando el contexto del proceso
    expulsado (que sigue listo en su cola y podrá reanudarse después). */

@@ -27,6 +27,9 @@ void add_ready_queue(PCB *p);
 // elimina el proceso actual de la cola de listos
 void remove_ready_queue(void);
 
+// descuenta un tic de la rodaja del proceso actual (round-robin)
+void round_robin_tick(void);
+
 
 #endif /* _SCHED_H */
 

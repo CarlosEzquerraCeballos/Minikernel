@@ -19,13 +19,13 @@
 // Variable global que identifica el proceso actual
 PCB * current = NULL;
 
-/* Variable global que representa la tabla de procesos */
+// Variable global que representa la tabla de procesos 
 static PCB proc_table[MAX_NR_PROC];
 
-/* Lista de procesos bloqueados durmiendo (proc_sleep) */
+// Lista de procesos bloqueados durmiendo (proc_sleep) 
 list sleep_list;
 
-/* Función que inicia la tabla de procesos */
+// Función que inicia la tabla de procesos 
 static void init_process_table(void){
     for (int i=0; i<MAX_NR_PROC; i++) proc_table[i].state = FINISHED;
 }
@@ -81,15 +81,17 @@ int do_create_process(char *prog, int prio){
             initial_pc, &(p_new->context));
         p_new->pid=nr_proc;
         p_new->priority=prio;
+        p_new->ticks_left=TICKS_POR_RODAJA; // rodaja completa al crearse
 
         printk("-> NUEVO PROCESO %d\n", p_new->pid);
-
-        /* lo inserta en la cola de listos */
+        
+        
+        // lo inserta en la cola de listos 
         add_ready_queue(p_new);
         error= 0;
     }
     else
-        error= -1; /* fallo al crear imagen */
+        error= -1; // fallo al crear imagen 
     return error;
 }
 /* Implementación de la llamada al sistema exit_process */
@@ -100,7 +102,7 @@ int do_exit_process(void){
     remove_ready_queue();
     release_stack(current->stack);
     pick_and_activate_next_task(0); // no salva estado del previo
-    return 0; /* no debería llegar aquí ya que el proceso terminó */
+    return 0; // no debería llegar aquí ya que el proceso terminó 
 }
 void init_process_module(void) {
     init_process_table();

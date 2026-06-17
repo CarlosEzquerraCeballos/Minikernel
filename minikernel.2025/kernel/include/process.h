@@ -35,6 +35,7 @@ typedef struct PCB {
     int state;		// FINISHED|READY|RUNNING|BLOCKED
     int priority;	// prioridad del proceso
     int ticks_to_sleep;	// tics de reloj restantes de bloqueo (proc_sleep)
+    int ticks_left;	// tics restantes de la rodaja actual (round-robin)
     context context;	// copia de regs. de UCP
     void *stack;	// dir. inicial de la pila
     void *mem;		// descriptor del mapa de memoria
