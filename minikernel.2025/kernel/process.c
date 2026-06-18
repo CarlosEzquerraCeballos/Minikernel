@@ -127,21 +127,19 @@ int do_proc_sleep(unsigned int secs){
 
     /* Sección crítica: la sleep_list y la cola de listos las manipula también
        el reloj (nivel 3). Se eleva el nivel para impedir que una interrupción
-       de reloj se cuele mientras se bloquea el proceso. El nivel se mantiene
-       elevado durante la cesión de CPU y solo se restaura cuando el proceso
-       despierta y reanuda su ejecución, evitando así cualquier ventana de
-       incoherencia entre el cambio de listas y el cambio de contexto. */
+       de reloj se cuele mientras se bloquea el proceso. */
     prev_level = set_int_priority_level(LEVEL_3);
 
     remove_ready_queue();          // deja de estar listo
     current->state = BLOCKED;
     insert_last(&sleep_list, current); // pasa a la lista de dormidos
 
+    // Hay que restaurar el nivel ANTES de ceder la CPU en este SO
+    // para que el siguiente proceso no herede el tapón de nivel 3.
+    set_int_priority_level(prev_level); 
+
     // Cede la CPU; hay que salvar el contexto para reanudar al despertar.
     pick_and_activate_next_task(1);
-
-    // Se reanuda aquí cuando el proceso despierta y recupera la CPU.
-    set_int_priority_level(prev_level); // restaura el nivel previo
 
     return 0;
 }
