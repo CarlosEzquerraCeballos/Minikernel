@@ -15,6 +15,8 @@
 #define MAX_NR_MUTEX_PER_PROC	4
 
 void init_mutex_module(void);
+int do_mutex_open(char *name);
+int do_mutex_close(int mutid);
 
 
 #endif /* _MUTEX_H */

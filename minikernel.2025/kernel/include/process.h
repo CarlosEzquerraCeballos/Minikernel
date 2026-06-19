@@ -12,6 +12,7 @@
 
 #include "HAL.h"
 #include "list.h"
+#include "mutex.h"
 
 #define MAX_NR_PROC	32
 
@@ -39,6 +40,7 @@ typedef struct PCB {
     context context;	// copia de regs. de UCP
     void *stack;	// dir. inicial de la pila
     void *mem;		// descriptor del mapa de memoria
+    int open_mutexes[MAX_NR_MUTEX_PER_PROC]; // descriptores locales de mutex (-1=libre)
 } PCB;
 
 // Variable global que identifica el proceso actual

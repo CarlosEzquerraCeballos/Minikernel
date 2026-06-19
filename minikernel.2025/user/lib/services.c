@@ -44,3 +44,9 @@ int get_priority(void){
 int proc_sleep(unsigned int secs){
     return sys_call(PROC_SLEEP, 1, (long)secs);
 }
+int mutex_open(char *name){
+    return sys_call(MUTEX_OPEN, 1, (long)name);
+}
+int mutex_close(int mutid){
+    return sys_call(MUTEX_CLOSE, 1, (long)mutid);
+}

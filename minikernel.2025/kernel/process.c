@@ -82,6 +82,8 @@ int do_create_process(char *prog, int prio){
         p_new->pid=nr_proc;
         p_new->priority=prio;
         p_new->ticks_left=TICKS_POR_RODAJA; // rodaja completa al crearse
+        for (int i=0; i<MAX_NR_MUTEX_PER_PROC; i++)
+            p_new->open_mutexes[i]=-1; // sin mutex abiertos al crearse
 
         printk("-> NUEVO PROCESO %d\n", p_new->pid);
         
@@ -97,6 +99,12 @@ int do_create_process(char *prog, int prio){
 /* Implementación de la llamada al sistema exit_process */
 int do_exit_process(void){
     printk("-> TERMINA PROCESO %d\n", current->pid);
+
+    // Cierre implícito de los mutex que el proceso dejó abiertos. 
+    for (int i=0; i<MAX_NR_MUTEX_PER_PROC; i++)
+        if (current->open_mutexes[i] != -1)
+            do_mutex_close(i);
+
     release_image(current->mem);
     current->state=FINISHED;
     remove_ready_queue();
