@@ -10,7 +10,7 @@ LIBDIR=lib
 CC=gcc
 CFLAGS=-Wall -fPIC -Werror -g -I$(INCLUDEDIR)
 
-PROGRAMAS=init lanza simplon yosoy dormilon yosoy_largo mudo creador_mut1 creador_mut2 creador_mut3 creador_mut4 creador_mut_error # locker1 locker2 locker3 locker1_int locker2_int lector lector2
+PROGRAMAS=init lanza simplon yosoy dormilon yosoy_largo mudo creador_mut1 creador_mut2 creador_mut3 creador_mut4 creador_mut_error locker1 locker2 locker3 # locker1_int locker2_int lector lector2
 
 all: biblioteca $(PROGRAMAS)
 

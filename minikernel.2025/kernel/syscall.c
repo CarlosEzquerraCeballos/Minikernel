@@ -28,6 +28,8 @@ static int sys_get_priority(void);
 static int sys_proc_sleep(void);
 static int sys_mutex_open(void);
 static int sys_mutex_close(void);
+static int sys_mutex_lock(void);
+static int sys_mutex_unlock(void);
 
 // tabla de llamadas al sistema
 int (*syscalls_table[NR_SYSCALLS])() = {sys_create_process,
@@ -38,6 +40,8 @@ int (*syscalls_table[NR_SYSCALLS])() = {sys_create_process,
                                         sys_proc_sleep,
                                         sys_mutex_open,
                                         sys_mutex_close,
+                                        sys_mutex_lock,
+                                        sys_mutex_unlock,
                                        };
 
 // Manejador de llamadas al sistema: descoméntelo en cuanto esté registrado
@@ -101,6 +105,7 @@ static int sys_create_process(void){
     prio=(unsigned int)read_register(2);
     return do_create_process(prog, prio);
 }
+
 static int sys_print(void) {
     char *texto;
     unsigned int longi;
@@ -108,6 +113,7 @@ static int sys_print(void) {
     longi=(unsigned int)read_register(2);
     return do_print(texto, longi);
 }
+
 static int sys_exit_process(void) {
     return do_exit_process();
 }
@@ -115,9 +121,11 @@ static int sys_exit_process(void) {
 static int sys_get_pid(void) {
     return do_get_pid();
 }
+
 static int sys_get_priority(void) {
     return do_get_priority();
 }
+
 static int sys_proc_sleep(void) {
     unsigned int secs;
     secs=(unsigned int)read_register(1);
@@ -129,8 +137,21 @@ static int sys_mutex_open(void) {
     name=(char *)read_register(1);
     return do_mutex_open(name);
 }
+
 static int sys_mutex_close(void) {
     int mutid;
     mutid=(int)read_register(1);
     return do_mutex_close(mutid);
+}
+
+static int sys_mutex_lock(void) {
+    int mutid;
+    mutid=(int)read_register(1);
+    return do_mutex_lock(mutid);
+}
+
+static int sys_mutex_unlock(void) {
+    int mutid;
+    mutid=(int)read_register(1);
+    return do_mutex_unlock(mutid);
 }

@@ -17,6 +17,8 @@
 void init_mutex_module(void);
 int do_mutex_open(char *name);
 int do_mutex_close(int mutid);
+int do_mutex_lock(int mutid);
+int do_mutex_unlock(int mutid);
 
 
 #endif /* _MUTEX_H */

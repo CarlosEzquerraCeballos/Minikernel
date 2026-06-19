@@ -50,3 +50,9 @@ int mutex_open(char *name){
 int mutex_close(int mutid){
     return sys_call(MUTEX_CLOSE, 1, (long)mutid);
 }
+int mutex_lock(int mutid){
+    return sys_call(MUTEX_LOCK, 1, (long)mutid);
+}
+int mutex_unlock(int mutid){
+    return sys_call(MUTEX_UNLOCK, 1, (long)mutid);
+}

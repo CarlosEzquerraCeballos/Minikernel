@@ -14,7 +14,7 @@
 #define _SYSCALL_NR_H
 
 // Número de llamadas disponibles
-#define NR_SYSCALLS	8
+#define NR_SYSCALLS	10
 
 // Llamadas existentes
 #define CREATE_PROCESS	0
@@ -25,6 +25,8 @@
 #define PROC_SLEEP	5
 #define MUTEX_OPEN	6
 #define MUTEX_CLOSE	7
+#define MUTEX_LOCK	8
+#define MUTEX_UNLOCK	9
 
 #endif /* _SYSCALL_NR_H */
 

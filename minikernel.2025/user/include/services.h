@@ -30,6 +30,8 @@ int get_priority(void);
 int proc_sleep(unsigned int secs);
 int mutex_open(char *name);
 int mutex_close(int mutid);
+int mutex_lock(int mutid);
+int mutex_unlock(int mutid);
 
 #endif /* _SERVICES_H */
 

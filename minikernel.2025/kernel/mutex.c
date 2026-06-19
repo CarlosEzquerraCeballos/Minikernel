@@ -15,6 +15,7 @@
 #include "process.h"
 #include "syscall.h"
 #include "list.h"
+#include "sched.h"
 #include "HAL.h"
 
 /* Estados de una entrada de la tabla global de mutex */
@@ -124,6 +125,26 @@ int do_mutex_open(char *name) {
     return local;
 }
 
+/* Libera la posesión de un mutex (ya identificado por su índice global). Si
+   hay procesos esperando, transfiere el cerrojo directamente al primero de la
+   lista de bloqueados y lo pasa a listos; si no hay nadie esperando, deja el
+   mutex libre. Debe invocarse con las interrupciones de reloj ya inhibidas
+   (nivel 3) por quien manipule listas. */
+static void mutex_release(int global) {
+    PCB *p_next;
+
+    if (list_is_empty(&mutex_table[global].blocked_list)) {
+        mutex_table[global].locked = MUTEX_UNLOCKED;
+        mutex_table[global].owner = NULL;
+    } else {
+        /* Transferencia directa del cerrojo al siguiente en espera. */
+        p_next = mutex_table[global].blocked_list.first;
+        remove_first(&mutex_table[global].blocked_list);
+        mutex_table[global].owner = p_next; // el cerrojo sigue locked
+        add_ready_queue(p_next);            // lo despierta
+    }
+}
+
 /* Cierra el descriptor local mutid del proceso actual. Si era la última
    apertura del mutex, lo libera de la tabla global. Devuelve 0 o -1. */
 int do_mutex_close(int mutid) {
@@ -134,6 +155,13 @@ int do_mutex_close(int mutid) {
     global = current->open_mutexes[mutid];
     if (global == -1) return -1; // no estaba abierto
 
+    /* Si el proceso que cierra es el poseedor del cerrojo, hay que liberar la
+       posesión (unlock implícito): despierta al siguiente en espera o lo deja
+       libre. Cubre el cierre explícito y, vía do_exit_process, el implícito. */
+    if (mutex_table[global].locked == MUTEX_LOCKED &&
+        mutex_table[global].owner == current)
+        mutex_release(global);
+
     /* Una apertura menos; si era la última, se libera la entrada global. */
     mutex_table[global].ref_count--;
     if (mutex_table[global].ref_count == 0)
@@ -141,6 +169,63 @@ int do_mutex_close(int mutid) {
 
     /* Libera el descriptor local. */
     current->open_mutexes[mutid] = -1;
+    return 0;
+}
+
+/* Adquiere el cerrojo del mutex mutid. Si está libre, lo toma. Si está
+   ocupado por otro, el proceso se bloquea hasta que se le transfiera. Si el
+   propio proceso ya lo posee, devuelve -1 (auto-interbloqueo). */
+int do_mutex_lock(int mutid) {
+    int global, prev_level;
+
+    if (mutid < 0 || mutid >= MAX_NR_MUTEX_PER_PROC) return -1;
+    global = current->open_mutexes[mutid];
+    if (global == -1) return -1;
+
+    if (mutex_table[global].locked == MUTEX_UNLOCKED) {
+        mutex_table[global].locked = MUTEX_LOCKED;
+        mutex_table[global].owner = current;
+        return 0;
+    }
+
+    /* Ocupado. Si ya lo posee este mismo proceso, es auto-interbloqueo. */
+    if (mutex_table[global].owner == current) return -1;
+
+    /* Ocupado por otro: el proceso se bloquea en la lista del mutex. La
+       manipulación de listas se hace con el reloj inhibido (nivel 3); la
+       cesión de CPU se realiza con el nivel ya elevado (context_switch
+       preserva el nivel de cada proceso) y se restaura al despertar. */
+    prev_level = set_int_priority_level(LEVEL_3);
+
+    current->state = BLOCKED;
+    insert_last(&mutex_table[global].blocked_list, current);
+    remove_ready_queue();
+
+    pick_and_activate_next_task(1); // cede la CPU
+
+    /* Al despertar, el cerrojo ya se le ha transferido (es el owner). */
+    set_int_priority_level(prev_level);
+    return 0;
+}
+
+/* Libera el cerrojo del mutex mutid. Solo puede hacerlo su poseedor. */
+int do_mutex_unlock(int mutid) {
+    int global, prev_level;
+
+    if (mutid < 0 || mutid >= MAX_NR_MUTEX_PER_PROC) return -1;
+    global = current->open_mutexes[mutid];
+    if (global == -1) return -1;
+
+    if (mutex_table[global].locked != MUTEX_LOCKED ||
+        mutex_table[global].owner != current)
+        return -1;
+
+    /* Sección crítica: mutex_release manipula la lista de bloqueados y la cola
+       de listos, que también toca el reloj. */
+    prev_level = set_int_priority_level(LEVEL_3);
+    mutex_release(global);
+    set_int_priority_level(prev_level);
+
     return 0;
 }
 
