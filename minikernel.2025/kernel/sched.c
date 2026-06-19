@@ -52,30 +52,39 @@ static void wait_for_int(void){
 // añade un proceso a la cola de listos
 void add_ready_queue(PCB *p) {
     int bit = prio_to_bit(p->priority);
+    int prev_level;
+
+    /* Protección frente a la interrupción de reloj (nivel 3): la manipulación
+       de la cola de listos y la máscara debe ser atómica respecto al reloj,
+       que también las toca al despertar dormidos. Como esta función la usan
+       la creación, la terminación y el round-robin, protegerla aquí cubre
+       todos esos casos a la vez (encapsulación recomendada por el enunciado). */
+    prev_level = set_int_priority_level(LEVEL_3);
 
     p->state = READY;
     insert_last(&ready_queue[bit], p);
     set_bit(&ready_mask, bit);
 
-    /* Disparo estratégico de la expulsión: solo si el proceso recién insertado
-       es ESTRICTAMENTE más prioritario que el proceso en ejecución. No se
-       dispara si no hay proceso actual (current==NULL, primer proceso del
-       sistema) o si current no está realmente ejecutando (está terminado o
-       bloqueado haciendo de "proceso nulo" a la espera de interrupciones en
-       wait_for_int); en esos casos la replanificación ya está en marcha por
-       otra vía y una interrupción software sería innecesaria. */
     if (current != NULL && current->state == RUNNING &&
         p->priority > current->priority)
         activate_soft_int();
+
+    set_int_priority_level(prev_level);
 }
 
 // elimina el proceso actual de la cola de listos
 void remove_ready_queue(void) {
     int bit = prio_to_bit(current->priority);
+    int prev_level;
+
+    /* Misma protección que add_ready_queue frente al reloj (nivel 3). */
+    prev_level = set_int_priority_level(LEVEL_3);
 
     remove_elem(&ready_queue[bit], current);
     if (list_is_empty(&ready_queue[bit]))
         clear_bit(&ready_mask, bit);
+
+    set_int_priority_level(prev_level);
 }
 
 /* Función de planificacion */

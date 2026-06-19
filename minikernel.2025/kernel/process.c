@@ -134,12 +134,16 @@ int do_proc_sleep(unsigned int secs){
     current->state = BLOCKED;
     insert_last(&sleep_list, current); // pasa a la lista de dormidos
 
-    // Hay que restaurar el nivel ANTES de ceder la CPU en este SO
-    // para que el siguiente proceso no herede el tapón de nivel 3.
-    set_int_priority_level(prev_level); 
-
-    // Cede la CPU; hay que salvar el contexto para reanudar al despertar.
+    /* Cede la CPU con el nivel todavía a 3. context_switch guarda el nivel
+       actual en el contexto del proceso que se duerme y restaura el del
+       entrante (cada proceso recupera SU nivel), así que no se "tapona" a
+       nadie. Bajar el nivel antes de ceder dejaría una ventana en la que el
+       reloj podría actuar sobre un estado a medio cambiar. */
     pick_and_activate_next_task(1);
+
+    /* Se reanuda aquí al despertar (el contexto restauró nivel 3); se baja
+       al nivel que tenía el proceso antes de dormirse. */
+    set_int_priority_level(prev_level);
 
     return 0;
 }
