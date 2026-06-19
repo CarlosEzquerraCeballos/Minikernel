@@ -125,24 +125,35 @@ int do_mutex_open(char *name) {
     return local;
 }
 
-/* Libera la posesión de un mutex (ya identificado por su índice global). Si
-   hay procesos esperando, transfiere el cerrojo directamente al primero de la
-   lista de bloqueados y lo pasa a listos; si no hay nadie esperando, deja el
-   mutex libre. Debe invocarse con las interrupciones de reloj ya inhibidas
-   (nivel 3) por quien manipule listas. */
-static void mutex_release(int global) {
-    PCB *p_next;
+/* Extrae de una lista de bloqueados el proceso de MAYOR prioridad y lo pasa a
+   la cola de listos. Devuelve dicho proceso, o NULL si la lista está vacía.
+   Es O(n) en el tamaño de la lista de bloqueo (que es pequeña: una por evento),
+   como indica el enunciado. Se encapsula porque la lectura de terminal (Fase 8)
+   necesita el mismo comportamiento. Debe invocarse con el reloj inhibido. */
+static PCB *unblock_most_priority(list *blocked) {
+    iterator it;
+    PCB *p, *best = NULL;
 
-    if (list_is_empty(&mutex_table[global].blocked_list)) {
-        mutex_table[global].locked = MUTEX_UNLOCKED;
-        mutex_table[global].owner = NULL;
-    } else {
-        /* Transferencia directa del cerrojo al siguiente en espera. */
-        p_next = mutex_table[global].blocked_list.first;
-        remove_first(&mutex_table[global].blocked_list);
-        mutex_table[global].owner = p_next; // el cerrojo sigue locked
-        add_ready_queue(p_next);            // lo despierta
+    if (list_is_empty(blocked)) return NULL;
+
+    for (iterator_init(blocked, &it); iterator_has_next(&it); ) {
+        p = iterator_next(&it);
+        if (best == NULL || p->priority > best->priority)
+            best = p;
     }
+    remove_elem(blocked, best);
+    add_ready_queue(best); // lo despierta (puede disparar expulsión si procede)
+    return best;
+}
+
+/* Libera la posesión de un mutex. El cerrojo queda LIBRE; si había procesos
+   esperando, se desbloquea al más prioritario, que volverá a competir por el
+   cerrojo al reanudarse (modelo de re-validación con while en do_mutex_lock).
+   Debe invocarse con el reloj inhibido (nivel 3). */
+static void mutex_release(int global) {
+    mutex_table[global].locked = MUTEX_UNLOCKED;
+    mutex_table[global].owner = NULL;
+    unblock_most_priority(&mutex_table[global].blocked_list);
 }
 
 /* Cierra el descriptor local mutid del proceso actual. Si era la última
@@ -172,9 +183,6 @@ int do_mutex_close(int mutid) {
     return 0;
 }
 
-/* Adquiere el cerrojo del mutex mutid. Si está libre, lo toma. Si está
-   ocupado por otro, el proceso se bloquea hasta que se le transfiera. Si el
-   propio proceso ya lo posee, devuelve -1 (auto-interbloqueo). */
 int do_mutex_lock(int mutid) {
     int global, prev_level;
 
@@ -182,28 +190,32 @@ int do_mutex_lock(int mutid) {
     global = current->open_mutexes[mutid];
     if (global == -1) return -1;
 
-    if (mutex_table[global].locked == MUTEX_UNLOCKED) {
-        mutex_table[global].locked = MUTEX_LOCKED;
-        mutex_table[global].owner = current;
-        return 0;
-    }
+    /* Prevención de auto-interbloqueo: si el proceso ya posee el cerrojo, un
+       segundo lock lo bloquearía para siempre. Se detecta y se devuelve error. */
+    if (mutex_table[global].locked == MUTEX_LOCKED &&
+        mutex_table[global].owner == current)
+        return -1;
 
-    /* Ocupado. Si ya lo posee este mismo proceso, es auto-interbloqueo. */
-    if (mutex_table[global].owner == current) return -1;
-
-    /* Ocupado por otro: el proceso se bloquea en la lista del mutex. La
-       manipulación de listas se hace con el reloj inhibido (nivel 3); la
-       cesión de CPU se realiza con el nivel ya elevado (context_switch
-       preserva el nivel de cada proceso) y se restaura al despertar. */
+    /* Toda la operación se realiza con el reloj inhibido (nivel 3) para que las
+       comprobaciones del estado del cerrojo y las manipulaciones de listas sean
+       atómicas. La cesión de CPU se hace con el nivel ya elevado (context_switch
+       preserva el nivel de cada proceso) y se restaura al final. */
     prev_level = set_int_priority_level(LEVEL_3);
 
-    current->state = BLOCKED;
-    insert_last(&mutex_table[global].blocked_list, current);
-    remove_ready_queue();
+    /* Re-validación con while (no if): al desbloquearse, el cerrojo pudo haber
+       sido tomado por otro proceso entre medias, así que hay que volver a
+       comprobar la condición y, si sigue ocupado, bloquearse de nuevo. */
+    while (mutex_table[global].locked == MUTEX_LOCKED) {
+        current->state = BLOCKED;
+        insert_last(&mutex_table[global].blocked_list, current);
+        remove_ready_queue();
+        pick_and_activate_next_task(1); // cede la CPU; al despertar reevalúa
+    }
 
-    pick_and_activate_next_task(1); // cede la CPU
+    /* Cerrojo libre: lo adquiere. */
+    mutex_table[global].locked = MUTEX_LOCKED;
+    mutex_table[global].owner = current;
 
-    /* Al despertar, el cerrojo ya se le ha transferido (es el owner). */
     set_int_priority_level(prev_level);
     return 0;
 }
