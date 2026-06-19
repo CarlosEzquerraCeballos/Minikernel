@@ -56,3 +56,6 @@ int mutex_lock(int mutid){
 int mutex_unlock(int mutid){
     return sys_call(MUTEX_UNLOCK, 1, (long)mutid);
 }
+int get_char(void){
+    return sys_call(GET_CHAR, 0);
+}

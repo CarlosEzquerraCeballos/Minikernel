@@ -30,6 +30,7 @@ static int sys_mutex_open(void);
 static int sys_mutex_close(void);
 static int sys_mutex_lock(void);
 static int sys_mutex_unlock(void);
+static int sys_get_char(void);
 
 // tabla de llamadas al sistema
 int (*syscalls_table[NR_SYSCALLS])() = {sys_create_process,
@@ -42,6 +43,7 @@ int (*syscalls_table[NR_SYSCALLS])() = {sys_create_process,
                                         sys_mutex_close,
                                         sys_mutex_lock,
                                         sys_mutex_unlock,
+                                        sys_get_char,
                                        };
 
 // Manejador de llamadas al sistema: descoméntelo en cuanto esté registrado
@@ -154,4 +156,8 @@ static int sys_mutex_unlock(void) {
     int mutid;
     mutid=(int)read_register(1);
     return do_mutex_unlock(mutid);
+}
+
+static int sys_get_char(void) {
+    return do_get_char();
 }

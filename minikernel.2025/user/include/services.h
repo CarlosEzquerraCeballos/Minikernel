@@ -32,6 +32,7 @@ int mutex_open(char *name);
 int mutex_close(int mutid);
 int mutex_lock(int mutid);
 int mutex_unlock(int mutid);
+int get_char(void);
 
 #endif /* _SERVICES_H */
 

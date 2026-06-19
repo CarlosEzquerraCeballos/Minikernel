@@ -18,5 +18,7 @@ void init_terminal_module(void);
 // Implementación de la llamada al sistema
 int do_print(char * buf, int size);
 
+int do_get_char(void);
+
 #endif /* _TERMINAL_H */
 
