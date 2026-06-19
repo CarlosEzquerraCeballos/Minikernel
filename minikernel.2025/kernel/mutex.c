@@ -206,10 +206,32 @@ int do_mutex_lock(int mutid) {
        sido tomado por otro proceso entre medias, así que hay que volver a
        comprobar la condición y, si sigue ocupado, bloquearse de nuevo. */
     while (mutex_table[global].locked == MUTEX_LOCKED) {
+        /* Detección de interbloqueo (grafo de espera). Como cada proceso solo
+           puede esperar por un mutex a la vez, el grafo es una simple cadena:
+           se sigue "dueño del mutex que espero -> mutex que ese dueño espera ->
+           su dueño -> ..." Si la cadena vuelve a current, bloquearse cerraría
+           un ciclo: hay interbloqueo y se devuelve error.
+           El chivato pending_mutex de current se marca ANTES de recorrer la
+           cadena: así, si el ciclo se cierra sobre el propio current, el
+           recorrido llega hasta él (su pending_mutex ya no es -1) y se detecta. */
+        current->pending_mutex = global;
+
+        PCB *aux = mutex_table[global].owner;
+        while (aux != NULL) {
+            if (aux == current) {       // la cadena vuelve a mí: ciclo
+                current->pending_mutex = -1;
+                set_int_priority_level(prev_level);
+                return -1;
+            }
+            if (aux->pending_mutex == -1) break; // aux no espera nada: sin ciclo
+            aux = mutex_table[aux->pending_mutex].owner;
+        }
+
         current->state = BLOCKED;
         insert_last(&mutex_table[global].blocked_list, current);
         remove_ready_queue();
         pick_and_activate_next_task(1); // cede la CPU; al despertar reevalúa
+        current->pending_mutex = -1;
     }
 
     /* Cerrojo libre: lo adquiere. */

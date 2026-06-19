@@ -84,6 +84,7 @@ int do_create_process(char *prog, int prio){
         p_new->ticks_left=TICKS_POR_RODAJA; // rodaja completa al crearse
         for (int i=0; i<MAX_NR_MUTEX_PER_PROC; i++)
             p_new->open_mutexes[i]=-1; // sin mutex abiertos al crearse
+        p_new->pending_mutex=-1; // al nacer no espera ningún mutex
 
         printk("-> NUEVO PROCESO %d\n", p_new->pid);
         
