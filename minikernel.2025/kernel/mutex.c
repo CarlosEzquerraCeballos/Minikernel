@@ -146,14 +146,21 @@ static PCB *unblock_most_priority(list *blocked) {
     return best;
 }
 
-/* Libera la posesión de un mutex. El cerrojo queda LIBRE; si había procesos
-   esperando, se desbloquea al más prioritario, que volverá a competir por el
-   cerrojo al reanudarse (modelo de re-validación con while en do_mutex_lock).
-   Debe invocarse con el reloj inhibido (nivel 3). */
 static void mutex_release(int global) {
+    /* Esta función manipula la lista de bloqueados del mutex y la cola de
+       listos, así que debe ejecutarse con el reloj y el terminal inhibidos
+       (nivel 3). Se eleva aquí, dentro de la propia función, para cubrir a
+       TODOS sus invocadores (unlock explícito, y unlock implícito al cerrar o
+       al terminar un proceso) en un único punto. La elevación es idempotente:
+       si el llamador ya estaba en nivel 3, subir y restaurar a 3 no tiene
+       efecto. */
+    int prev_level = set_int_priority_level(LEVEL_3);
+
     mutex_table[global].locked = MUTEX_UNLOCKED;
     mutex_table[global].owner = NULL;
     unblock_most_priority(&mutex_table[global].blocked_list);
+
+    set_int_priority_level(prev_level);
 }
 
 /* Cierra el descriptor local mutid del proceso actual. Si era la última
